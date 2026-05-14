@@ -234,6 +234,41 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4ff;min-height:100vh
 .mt10{margin-top:10px;}
 .mt14{margin-top:14px;}
 </style>
+
+<style id="print-thermal-fix">
+@media print {
+  body {
+    background: white !important;
+  }
+  body * {
+    visibility: hidden;
+  }
+  #nota-text, #nota-text * {
+    visibility: visible;
+  }
+  #nota-text {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 58mm;
+    font-family: monospace;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  @page {
+    size: 58mm auto;
+    margin: 0;
+  }
+}
+.nota-box {
+  width: 58mm;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0;
+  border: none;
+}
+</style>
+
 </head>
 <body>
 
