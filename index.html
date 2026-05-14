@@ -3609,7 +3609,6 @@ function disconnectPrinter(){
   _btDevice=null;_btChar=null;updatePrinterUI();toast('🔌 Printer diputus');
 }
 
-
 function printNotaThermal() {
   const text = document.getElementById("nota-text").innerText;
 
@@ -3620,18 +3619,17 @@ function printNotaThermal() {
     <head>
       <title>Print</title>
       <style>
-        body {
+        body{
           font-family: monospace;
-          font-size: 12px;
-          white-space: pre-wrap;
-          margin: 0;
-          padding: 5px;
-          width: 58mm;
+          font-size:12px;
+          white-space:pre-wrap;
+          margin:0;
+          padding:5px;
+          width:58mm;
         }
-
-        @page {
-          size: 58mm auto;
-          margin: 0;
+        @page{
+          size:58mm auto;
+          margin:0;
         }
       </style>
     </head>
@@ -3645,7 +3643,6 @@ function printNotaThermal() {
     w.print();
   }, 500);
 }
-
 function openDetailBarangGrid(id){
   var b=getBarang().find(function(x){return x.id===id;});if(!b)return;
   var stok=b.stok!=null?b.stok:0;
