@@ -3434,78 +3434,59 @@ var FEED3='\n\n\n';
 
 function notaToESCPOS(teks){
   var CHARS=32;
-  var LINE='-'.repeat(CHARS)+'\n';
+  var SEP='-'.repeat(CHARS);
 
-  function centerText(str){
-    str=str.substring(0,CHARS);
-    var pad=Math.max(0,Math.floor((CHARS-str.length)/2));
-    return ' '.repeat(pad)+str+'\n';
+  function clean(str){
+    // Hapus semua emoji dan karakter non-ASCII, hapus tanda *
+    return str.replace(/[^\x00-\x7E]/g,'').replace(/\*/g,'').replace(/_/g,'').trim();
   }
-  function wrapLine(str){
-    var out='';
-    while(str.length>CHARS){
-      out+=str.substring(0,CHARS)+'\n';
-      str=str.substring(CHARS);
-    }
-    if(str) out+=str+'\n';
-    return out;
+  function center(str){
+    if(str.length>=CHARS) return str.substring(0,CHARS);
+    var pad=Math.floor((CHARS-str.length)/2);
+    return ' '.repeat(pad)+str;
   }
-  function cleanStr(str){
-    // Hapus emoji dan karakter non-ASCII, pertahankan tanda * dan teks lain
-    return str.replace(/[^\x00-\x7E]/g,'').trim();
+  function wrap(str){
+    var out=[];
+    while(str.length>CHARS){out.push(str.substring(0,CHARS));str=str.substring(CHARS);}
+    if(str) out.push(str);
+    return out.join('\n');
   }
 
-  var out=INIT;
-  out+=CENTER;
-
+  var output=[];
   var lines=teks.split('\n');
+
   lines.forEach(function(line){
-    if(!line.trim()) return;
+    var c=clean(line);
+    if(!c) return; // baris kosong setelah dibersihkan - skip
 
-    var clean=cleanStr(line);
-    if(!clean) return;
-
-    // Separator
+    // Separator garis
     if(line.match(/^[━\-=]{3,}/)){
-      out+=LEFT+LINE;
+      output.push(SEP);
       return;
     }
 
-    // Terima kasih
-    if(line.includes('Terima kasih')||line.includes('_Terima')){
-      out+=CENTER+centerText('Terima kasih!')+LEFT;
-      return;
-    }
+    // Terima kasih - skip, nanti ditambah manual di bawah
+    if(c.toLowerCase().includes('terima kasih')) return;
 
-    // Header NOTA TRANSAKSI — center
-    if(line.includes('NOTA TRANSAKSI')){
-      out+=CENTER+centerText('* NOTA TRANSAKSI *')+LEFT;
-      return;
+    // Baris yang di-center: header, nama konter, tanggal
+    var centered = c.includes('NOTA TRANSAKSI') ||
+                   c.includes(getNama().toUpperCase()) ||
+                   c.match(/^\d{2}\/\d{2}\/\d{4}/);
+    if(centered){
+      output.push(center(c));
+    } else {
+      output.push(wrap(c));
     }
-
-    // Nama konter — center bold
-    if(line.includes(getNama())){
-      out+=CENTER+centerText(getNama().toUpperCase())+LEFT;
-      return;
-    }
-
-    // Tanggal — center
-    if(line.startsWith('\uD83D')||clean.match(/^\d{2}\/\d{2}\/\d{4}/)){
-      // Ambil bagian tanggal saja
-      var tglMatch=clean.match(/\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/);
-      if(tglMatch) out+=CENTER+centerText(tglMatch[0])+LEFT;
-      return;
-    }
-
-    // Baris field — left align, hapus tanda * untuk cetak bersih
-    var cleanVal=clean.replace(/\*/g,'');
-    out+=LEFT+wrapLine(cleanVal);
   });
 
-  out+=LINE;
-  out+=CENTER+centerText('Terima kasih!')+LEFT;
-  out+='\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n';
-  out+=CUT;
+  // Susun output ESC/POS
+  var out = INIT;
+  output.forEach(function(line){ out += line + '\n'; });
+  out += SEP + '\n';
+  out += center('Terima kasih!') + '\n';
+  // Baris kosong supaya tidak kepotong — sesuaikan angka jika masih kepotong
+  out += '\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n'; // 20 baris
+  out += CUT;
   return out;
 }
 
