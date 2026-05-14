@@ -3610,297 +3610,156 @@ function disconnectPrinter(){
 }
 
 
-function cleanNotaForCanvas(text){
-  return String(text||'')
-    .replace(/\r/g,'')
-    .replace(/\*/g,'')
-    .replace(/[🧾🏧📅⚡🙏📱]/g,function(m){
-      var map={'🧾':'', '🏧':'ATM', '📅':'', '⚡':'', '🙏':'', '📱':''};
-      return map[m]||'';
-    });
-}
-
-function makeNotaCanvas58mm(notaEl){
-  var raw=notaEl.innerText || notaEl.textContent || '';
-  var text=cleanNotaForCanvas(raw);
-  var rawLines=text.split('\n');
-
-  var width=576;          // resolusi lebih tinggi agar tulisan lebih tajam
-  var padding=6;
-  var fontSize=26;
-  var lineHeight=40;
-
-  var canvas=document.createElement('canvas');
-  var ctx=canvas.getContext('2d');
-  ctx.font=fontSize+'px monospace';
-
-  var lines=[];
-  rawLines.forEach(function(line){
-    if(line.trim()===''){
-      lines.push('');
-      return;
-    }
-    var current='';
-    for(var i=0;i<line.length;i++){
-      var test=current+line[i];
-      if(ctx.measureText(test).width>width-(padding*2)){
-        lines.push(current);
-        current=line[i];
-      }else{
-        current=test;
-      }
-    }
-    lines.push(current);
-  });
-
-  var height=(lines.length*lineHeight)+(padding*2)+70;
-  canvas.width=width;
-  canvas.height=height;
-
-  ctx.fillStyle='#fff';
-  ctx.fillRect(0,0,width,height);
-  ctx.fillStyle='#000';
-  ctx.font=fontSize+'px monospace';
-  ctx.textBaseline='top';
-
-  var y=padding;
-  lines.forEach(function(line){
-    ctx.fillText(line,padding,y);
-    y+=lineHeight;
-  });
-
-  return canvas;
-}
-
-function canvasToEscposRaster(canvas){
-  var width=canvas.width;
-  var height=canvas.height;
-  var ctx=canvas.getContext('2d');
-  var img=ctx.getImageData(0,0,width,height);
-  var bytesPerRow=Math.ceil(width/8);
-  var data=[];
-
-  // ESC @ initialize
-  data.push(0x1B,0x40);
-  // Align left
-  data.push(0x1B,0x61,0x00);
-  // Line spacing
-  data.push(0x1B,0x33,0x18);
-
-  // GS v 0 raster bit image
-  data.push(0x1D,0x76,0x30,0x00);
-  data.push(bytesPerRow & 0xFF, (bytesPerRow >> 8) & 0xFF);
-  data.push(height & 0xFF, (height >> 8) & 0xFF);
-
-  for(var y=0;y<height;y++){
-    for(var xByte=0;xByte<bytesPerRow;xByte++){
-      var byte=0;
-      for(var bit=0;bit<8;bit++){
-        var x=(xByte*8)+bit;
-        if(x<width){
-          var idx=(y*width+x)*4;
-          var r=img.data[idx], g=img.data[idx+1], b=img.data[idx+2];
-          var gray=(r+g+b)/3;
-          if(gray<220){
-            byte|=(0x80>>bit);
-          }
-        }
-      }
-      data.push(byte);
-    }
-  }
-
-  // feed paper + cut if supported
-  data.push(0x0A,0x0A,0x0A);
-  return new Uint8Array(data);
-}
-
-async function writeBleChunks(bytes){
-  var chunkSize=100;
-  for(var i=0;i<bytes.length;i+=chunkSize){
-    var chunk=bytes.slice(i,i+chunkSize);
-    await _btChar.writeValue(chunk);
-    await new Promise(function(resolve){setTimeout(resolve,30);});
-  }
-}
-
-async function printNotaAsImage58mm(notaEl){
-  var canvas=makeNotaCanvas58mm(notaEl);
-  var bytes=canvasToEscposRaster(canvas);
-  await writeBleChunks(bytes);
-  toast('✅ Nota berhasil dicetak');
-}
-
-async 
-function normalizeNotaEscpos(raw){
-  var text = String(raw || '');
-
-  // Buang emoji & markdown WA supaya printer text native rapi dan cepat
-  text = text
-    .replace(/\r/g,'')
-    .replace(/[🧾🏧📅⚡🙏📱]/g,'')
-    .replace(/\*/g,'')
-    .replace(/_/g,'')
-    .replace(/[━─—–]+/g,'------------------------------');
-
-  var out = [];
-  text.split('\n').forEach(function(line){
-    line = line.trimEnd();
-
-    // Rapikan baris kosong berlebihan
-    if(line.trim()===''){
-      if(out.length && out[out.length-1] !== '') out.push('');
-      return;
-    }
-
-    // Label lebih rapi dan rapat
-    line = line
-      .replace(/^No Meter\s*:/i, 'No Meter :')
-      .replace(/^No Token\s*:/i, 'No Token :')
-      .replace(/^Nominal\s*:/i, 'Nominal  :')
-      .replace(/^Fee\s*:/i, 'Fee      :')
-      .replace(/^Ket\s*:/i, 'Ket      :')
-      .replace(/^WA\s*:/i, 'WA       :');
-
-    out.push(line.trim());
-  });
-
-  return out.join('\n').trim();
-}
-
-function centerText58(s){
+// ===== PRINT BLUETOOTH ESC/POS NATIVE FINAL - LOGIN SAFE =====
+function escposCenter58(s){
   s = String(s || '').trim();
   var width = 32;
   if(s.length >= width) return s;
   var left = Math.floor((width - s.length) / 2);
-  return ' '.repeat(left) + s;
+  var pad = '';
+  for(var i=0;i<left;i++) pad += ' ';
+  return pad + s;
 }
 
-function buildEscposNotaText(){
-  var raw = '';
+function escposCleanLine(line){
+  line = String(line || '');
+  line = line.replace(/\*/g,'');
+  line = line.replace(/_/g,'');
+  line = line.replace(/[🧾🏧📅⚡🙏📱]/g,'');
+  line = line.replace(/[━─—–]+/g,'------------------------------');
+  line = line.replace(/^No Meter\s*:/i, 'No Meter :');
+  line = line.replace(/^No Token\s*:/i, 'No Token :');
+  line = line.replace(/^Nominal\s*:/i, 'Nominal  :');
+  line = line.replace(/^Fee\s*:/i, 'Fee      :');
+  line = line.replace(/^Ket\s*:/i, 'Ket      :');
+  line = line.replace(/^WA\s*:/i, 'WA       :');
+  return line.trim();
+}
+
+function escposBuildNotaText(){
   var el = document.getElementById('nota-text');
-  if(el) raw = el.innerText || el.textContent || '';
+  var raw = el ? (el.innerText || el.textContent || '') : '';
+  raw = String(raw || '').replace(/\r/g,'');
 
-  var text = normalizeNotaEscpos(raw);
-  var lines = text.split('\n').map(function(l){ return l.trim(); }).filter(function(l, idx, arr){
-    // buang baris kosong awal/akhir
-    return !(l==='' && (idx===0 || idx===arr.length-1));
-  });
-
+  var rawLines = raw.split('\n');
   var finalLines = [];
   var divider = '------------------------------';
 
-  lines.forEach(function(line){
-    if(!line) {
-      finalLines.push('');
-      return;
+  for(var i=0;i<rawLines.length;i++){
+    var line = escposCleanLine(rawLines[i]);
+    if(line === ''){
+      continue;
     }
 
     var upper = line.toUpperCase();
 
-    // Judul dan nama toko dibuat center agar seperti app kasir
     if(upper === 'NOTA TRANSAKSI'){
-      finalLines.push(centerText58('NOTA TRANSAKSI'));
-      return;
-    }
-    if(upper === 'MD CELLULER'){
-      finalLines.push(centerText58('MD CELLULER'));
-      return;
+      finalLines.push(escposCenter58('NOTA TRANSAKSI'));
+      continue;
     }
 
-    // Tanggal biasanya baris berisi dd/mm/yyyy
+    if(upper === 'MD CELLULER'){
+      finalLines.push(escposCenter58('MD CELLULER'));
+      continue;
+    }
+
     if(/^\d{2}\/\d{2}\/\d{4}/.test(line)){
-      finalLines.push(centerText58(line));
-      return;
+      finalLines.push(escposCenter58(line));
+      continue;
     }
 
     if(/^-{8,}$/.test(line)){
       finalLines.push(divider);
-      return;
+      continue;
     }
 
-    // Jenis transaksi bisa center / kiri. Dibuat kiri tegas agar mirip struk POS
-    if(upper === 'BAYAR PLN' || upper.indexOf('BAYAR ')===0 || upper.indexOf('TRANSFER')===0 || upper.indexOf('TOP UP')===0 || upper.indexOf('TARIK')===0 || upper.indexOf('SETOR')===0){
+    if(upper === 'BAYAR PLN' || upper.indexOf('BAYAR ') === 0 || upper.indexOf('TRANSFER') === 0 || upper.indexOf('TOP UP') === 0 || upper.indexOf('TARIK') === 0 || upper.indexOf('SETOR') === 0){
       finalLines.push('');
       finalLines.push(upper);
-      return;
+      continue;
     }
 
-    // Wrap baris panjang maksimal 32 karakter, lanjutan dibuat agak masuk
+    // Wrap maksimal 32 karakter, supaya tidak patah ngawur di printer
     var max = 32;
     while(line.length > max){
       var cut = line.lastIndexOf(' ', max);
-      if(cut < 12) cut = max;
-      finalLines.push(line.slice(0, cut));
-      line = '  ' + line.slice(cut).trim();
+      if(cut < 10) cut = max;
+      finalLines.push(line.substring(0, cut));
+      line = '  ' + line.substring(cut).trim();
     }
     finalLines.push(line);
-  });
+  }
 
-  // Pastikan ada feed bawah
   return finalLines.join('\n') + '\n\n\n';
 }
 
-function encodeEscposText(str){
-  // TextEncoder UTF-8 cukup untuk angka/huruf Indonesia. Emoji sudah dibuang.
-  return new TextEncoder().encode(str);
+function escposEncodeAscii(str){
+  // Printer thermal murah paling stabil dengan ASCII.
+  // Karakter non-ASCII dibuang supaya tidak bikin printer macet.
+  var out = [];
+  str = String(str || '');
+  for(var i=0;i<str.length;i++){
+    var c = str.charCodeAt(i);
+    if(c === 10 || c === 13 || (c >= 32 && c <= 126)){
+      out.push(c);
+    }else{
+      out.push(32);
+    }
+  }
+  return out;
 }
 
 function escposNativeBytes(){
-  var text = buildEscposNotaText();
-  var textBytes = Array.from(encodeEscposText(text));
+  var textBytes = escposEncodeAscii(escposBuildNotaText());
   var data = [];
 
-  // ESC @ init
+  // Init printer
   data.push(0x1B,0x40);
 
-  // Character code table PC437/default. Aman untuk angka huruf umum.
-  data.push(0x1B,0x74,0x00);
-
-  // Align left
-  data.push(0x1B,0x61,0x00);
+  // Font A
+  data.push(0x1B,0x4D,0x00);
 
   // Bold ON
   data.push(0x1B,0x45,0x01);
 
-  // Double strike ON, bikin lebih tebal di banyak printer
+  // Double-strike ON, bikin lebih tebal
   data.push(0x1B,0x47,0x01);
 
-  // Font A normal
-  data.push(0x1B,0x4D,0x00);
-
-  // Size normal
+  // Normal size
   data.push(0x1D,0x21,0x00);
 
   // Line spacing rapat
   data.push(0x1B,0x33,0x18);
 
-  data = data.concat(textBytes);
+  // Align left
+  data.push(0x1B,0x61,0x00);
 
-  // Bold OFF + double strike OFF
+  for(var i=0;i<textBytes.length;i++) data.push(textBytes[i]);
+
+  // Bold OFF
   data.push(0x1B,0x45,0x00);
   data.push(0x1B,0x47,0x00);
 
-  // Feed
+  // Feed bawah
   data.push(0x0A,0x0A,0x0A);
 
   return new Uint8Array(data);
 }
 
-async function writeBleFast(bytes){
-  // Text native jauh lebih kecil dari gambar, jadi bisa chunk lebih besar dan cepat.
-  var chunkSize = 180;
+async function escposWriteFast(bytes){
+  var chunkSize = 120;
   for(var i=0;i<bytes.length;i+=chunkSize){
     var chunk = bytes.slice(i, i + chunkSize);
     await _btChar.writeValue(chunk);
-    await new Promise(function(resolve){ setTimeout(resolve, 8); });
+    await new Promise(function(resolve){ setTimeout(resolve, 12); });
   }
 }
 
-async function printEscposNativeText(){
+async function escposPrintNative(){
   var bytes = escposNativeBytes();
-  await writeBleFast(bytes);
+  await escposWriteFast(bytes);
 }
+// ===== END PRINT BLUETOOTH ESC/POS NATIVE FINAL =====
 
 async function printNotaThermal(){
   if(!navigator.bluetooth){
@@ -3921,8 +3780,8 @@ async function printNotaThermal(){
       return;
     }
 
-    toast('🖨️ Cetak mode cepat...');
-    await printEscposNativeText();
+    toast('🖨️ Cetak cepat...');
+    await escposPrintNative();
     toast('✅ Nota berhasil dicetak');
   }catch(e){
     toast('❌ Gagal print: '+e.message);
