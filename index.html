@@ -3426,7 +3426,7 @@ var BT_CHARS=[
 
 // ESC/POS commands
 var E='\x1B', G='\x1D';
-var INIT=E+'@', CUT=G+'V\x41\x05';
+var INIT=E+'@', CUT=G+'V\x00';
 var BOLD_ON=E+'E\x01', BOLD_OFF=E+'E\x00';
 var CENTER=E+'a\x01', LEFT=E+'a\x00';
 var SIZE_BIG=G+'!\x11', SIZE_NORM=G+'!\x00';
@@ -3485,7 +3485,7 @@ function notaToESCPOS(teks){
   out += SEP + '\n';
   out += center('Terima kasih!') + '\n';
   // Baris kosong supaya tidak kepotong — sesuaikan angka jika masih kepotong
-  out += '\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n'; // 35 baris
+  out += '\x1B\x64\x08'; // ESC d n — feed 8 baris (kompatibel semua printer)
   out += CUT;
   return out;
 }
