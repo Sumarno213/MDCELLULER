@@ -3625,10 +3625,10 @@ function makeNotaCanvas58mm(notaEl){
   var text=cleanNotaForCanvas(raw);
   var rawLines=text.split('\n');
 
-  var width=384;          // standar 58mm thermal
-  var padding=18;
-  var fontSize=23;
-  var lineHeight=32;
+  var width=576;          // resolusi lebih tinggi agar tulisan lebih tajam
+  var padding=6;
+  var fontSize=26;
+  var lineHeight=40;
 
   var canvas=document.createElement('canvas');
   var ctx=canvas.getContext('2d');
@@ -3701,7 +3701,7 @@ function canvasToEscposRaster(canvas){
           var idx=(y*width+x)*4;
           var r=img.data[idx], g=img.data[idx+1], b=img.data[idx+2];
           var gray=(r+g+b)/3;
-          if(gray<180){
+          if(gray<220){
             byte|=(0x80>>bit);
           }
         }
@@ -3716,11 +3716,11 @@ function canvasToEscposRaster(canvas){
 }
 
 async function writeBleChunks(bytes){
-  var chunkSize=120;
+  var chunkSize=100;
   for(var i=0;i<bytes.length;i+=chunkSize){
     var chunk=bytes.slice(i,i+chunkSize);
     await _btChar.writeValue(chunk);
-    await new Promise(function(resolve){setTimeout(resolve,25);});
+    await new Promise(function(resolve){setTimeout(resolve,30);});
   }
 }
 
