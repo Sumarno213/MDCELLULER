@@ -3717,18 +3717,18 @@ function escposNativeBytes(){
   data.push(0x1B,0x40);
 
   // Font A
-  data.push(0x1B,0x4D,0x00);
+  data.push(0x1B,0x4D,0x01);
 
-  // Bold ON
-  data.push(0x1B,0x45,0x01);
+  // Bold OFF, hasil lebih tajam dan tidak meleber
+  data.push(0x1B,0x45,0x00);
 
-  // Double-strike ON, bikin lebih tebal
-  data.push(0x1B,0x47,0x01);
+  // Double-strike OFF, mencegah hasil samar/bleeding
+  data.push(0x1B,0x47,0x00);
 
   // Normal size
   data.push(0x1D,0x21,0x00);
 
-  // Line spacing rapat
+  // Line spacing pas agar tidak terlalu numpuk
   data.push(0x1B,0x33,0x18);
 
   // Align left
