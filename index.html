@@ -3609,39 +3609,40 @@ function disconnectPrinter(){
   _btDevice=null;_btChar=null;updatePrinterUI();toast('🔌 Printer diputus');
 }
 
-function printNotaThermal() {
-  const text = document.getElementById("nota-text").innerText;
+async function printNotaThermal(){
+  _printData=document.getElementById('nota-text').textContent;
 
-  const w = window.open("", "_blank");
+  if(!navigator.bluetooth){
+    toast('❌ Browser tidak mendukung Bluetooth. Pakai Chrome Android terbaru.');
+    return;
+  }
 
-  w.document.write(`
-    <html>
-    <head>
-      <title>Print</title>
-      <style>
-        body{
-          font-family: monospace;
-          font-size:12px;
-          white-space:pre-wrap;
-          margin:0;
-          padding:5px;
-          width:58mm;
-        }
-        @page{
-          size:58mm auto;
-          margin:0;
-        }
-      </style>
-    </head>
-    <body>${text}</body>
-    </html>
-  `);
+  var prev=document.getElementById('printer-preview-box');
+  if(prev){
+    var previewTeks=_printData.replace(/\*/g,'').replace(/[🧾🏧📅━]/g,'').trim();
+    prev.textContent=previewTeks;
+    prev.style.display='block';
+  }
 
-  w.document.close();
+  try{
+    closeModal('modal-nota');
 
-  setTimeout(() => {
-    w.print();
-  }, 500);
+    // Kalau belum terhubung, langsung cari dan hubungkan printer
+    if(!_btChar || !_btDevice || !_btDevice.gatt || !_btDevice.gatt.connected){
+      toast('🔍 Cari printer Bluetooth...');
+      await connectPrinter();
+    }
+
+    // Setelah ketemu dan tersambung, langsung cetak
+    if(_btChar && _btDevice && _btDevice.gatt && _btDevice.gatt.connected){
+      toast('🖨️ Mencetak nota...');
+      await doPrint();
+    }else{
+      toast('❌ Printer belum terhubung');
+    }
+  }catch(e){
+    toast('❌ Gagal print: '+e.message);
+  }
 }
 function openDetailBarangGrid(id){
   var b=getBarang().find(function(x){return x.id===id;});if(!b)return;
