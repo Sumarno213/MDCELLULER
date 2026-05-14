@@ -3611,33 +3611,31 @@ function disconnectPrinter(){
 
 
 function printNotaThermal() {
-  const isiHTML = document.getElementById("nota-text").innerHTML;
+  const text = document.getElementById("nota-text").innerText;
 
   const w = window.open("", "_blank");
 
   w.document.write(`
     <html>
     <head>
-      <title>Print Nota</title>
+      <title>Print</title>
       <style>
         body {
-          margin: 0;
-          padding: 10px;
-          width: 58mm;
           font-family: monospace;
           font-size: 12px;
-          line-height: 1.6;
           white-space: pre-wrap;
+          margin: 0;
+          padding: 5px;
+          width: 58mm;
         }
+
         @page {
           size: 58mm auto;
           margin: 0;
         }
       </style>
     </head>
-    <body>
-      ${isiHTML}
-    </body>
+    <body>${text}</body>
     </html>
   `);
 
@@ -3648,10 +3646,6 @@ function printNotaThermal() {
   }, 500);
 }
 
-  closeModal('modal-nota');
-  updatePrinterUI();
-  openModal('modal-printer');
-}
 function openDetailBarangGrid(id){
   var b=getBarang().find(function(x){return x.id===id;});if(!b)return;
   var stok=b.stok!=null?b.stok:0;
