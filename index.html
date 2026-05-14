@@ -3731,15 +3731,180 @@ async function printNotaAsImage58mm(notaEl){
   toast('✅ Nota berhasil dicetak');
 }
 
+async 
+function normalizeNotaEscpos(raw){
+  var text = String(raw || '');
+
+  // Buang emoji & markdown WA supaya printer text native rapi dan cepat
+  text = text
+    .replace(/\r/g,'')
+    .replace(/[🧾🏧📅⚡🙏📱]/g,'')
+    .replace(/\*/g,'')
+    .replace(/_/g,'')
+    .replace(/[━─—–]+/g,'------------------------------');
+
+  var out = [];
+  text.split('\n').forEach(function(line){
+    line = line.trimEnd();
+
+    // Rapikan baris kosong berlebihan
+    if(line.trim()===''){
+      if(out.length && out[out.length-1] !== '') out.push('');
+      return;
+    }
+
+    // Label lebih rapi dan rapat
+    line = line
+      .replace(/^No Meter\s*:/i, 'No Meter :')
+      .replace(/^No Token\s*:/i, 'No Token :')
+      .replace(/^Nominal\s*:/i, 'Nominal  :')
+      .replace(/^Fee\s*:/i, 'Fee      :')
+      .replace(/^Ket\s*:/i, 'Ket      :')
+      .replace(/^WA\s*:/i, 'WA       :');
+
+    out.push(line.trim());
+  });
+
+  return out.join('\n').trim();
+}
+
+function centerText58(s){
+  s = String(s || '').trim();
+  var width = 32;
+  if(s.length >= width) return s;
+  var left = Math.floor((width - s.length) / 2);
+  return ' '.repeat(left) + s;
+}
+
+function buildEscposNotaText(){
+  var raw = '';
+  var el = document.getElementById('nota-text');
+  if(el) raw = el.innerText || el.textContent || '';
+
+  var text = normalizeNotaEscpos(raw);
+  var lines = text.split('\n').map(function(l){ return l.trim(); }).filter(function(l, idx, arr){
+    // buang baris kosong awal/akhir
+    return !(l==='' && (idx===0 || idx===arr.length-1));
+  });
+
+  var finalLines = [];
+  var divider = '------------------------------';
+
+  lines.forEach(function(line){
+    if(!line) {
+      finalLines.push('');
+      return;
+    }
+
+    var upper = line.toUpperCase();
+
+    // Judul dan nama toko dibuat center agar seperti app kasir
+    if(upper === 'NOTA TRANSAKSI'){
+      finalLines.push(centerText58('NOTA TRANSAKSI'));
+      return;
+    }
+    if(upper === 'MD CELLULER'){
+      finalLines.push(centerText58('MD CELLULER'));
+      return;
+    }
+
+    // Tanggal biasanya baris berisi dd/mm/yyyy
+    if(/^\d{2}\/\d{2}\/\d{4}/.test(line)){
+      finalLines.push(centerText58(line));
+      return;
+    }
+
+    if(/^-{8,}$/.test(line)){
+      finalLines.push(divider);
+      return;
+    }
+
+    // Jenis transaksi bisa center / kiri. Dibuat kiri tegas agar mirip struk POS
+    if(upper === 'BAYAR PLN' || upper.indexOf('BAYAR ')===0 || upper.indexOf('TRANSFER')===0 || upper.indexOf('TOP UP')===0 || upper.indexOf('TARIK')===0 || upper.indexOf('SETOR')===0){
+      finalLines.push('');
+      finalLines.push(upper);
+      return;
+    }
+
+    // Wrap baris panjang maksimal 32 karakter, lanjutan dibuat agak masuk
+    var max = 32;
+    while(line.length > max){
+      var cut = line.lastIndexOf(' ', max);
+      if(cut < 12) cut = max;
+      finalLines.push(line.slice(0, cut));
+      line = '  ' + line.slice(cut).trim();
+    }
+    finalLines.push(line);
+  });
+
+  // Pastikan ada feed bawah
+  return finalLines.join('\n') + '\n\n\n';
+}
+
+function encodeEscposText(str){
+  // TextEncoder UTF-8 cukup untuk angka/huruf Indonesia. Emoji sudah dibuang.
+  return new TextEncoder().encode(str);
+}
+
+function escposNativeBytes(){
+  var text = buildEscposNotaText();
+  var textBytes = Array.from(encodeEscposText(text));
+  var data = [];
+
+  // ESC @ init
+  data.push(0x1B,0x40);
+
+  // Character code table PC437/default. Aman untuk angka huruf umum.
+  data.push(0x1B,0x74,0x00);
+
+  // Align left
+  data.push(0x1B,0x61,0x00);
+
+  // Bold ON
+  data.push(0x1B,0x45,0x01);
+
+  // Double strike ON, bikin lebih tebal di banyak printer
+  data.push(0x1B,0x47,0x01);
+
+  // Font A normal
+  data.push(0x1B,0x4D,0x00);
+
+  // Size normal
+  data.push(0x1D,0x21,0x00);
+
+  // Line spacing rapat
+  data.push(0x1B,0x33,0x18);
+
+  data = data.concat(textBytes);
+
+  // Bold OFF + double strike OFF
+  data.push(0x1B,0x45,0x00);
+  data.push(0x1B,0x47,0x00);
+
+  // Feed
+  data.push(0x0A,0x0A,0x0A);
+
+  return new Uint8Array(data);
+}
+
+async function writeBleFast(bytes){
+  // Text native jauh lebih kecil dari gambar, jadi bisa chunk lebih besar dan cepat.
+  var chunkSize = 180;
+  for(var i=0;i<bytes.length;i+=chunkSize){
+    var chunk = bytes.slice(i, i + chunkSize);
+    await _btChar.writeValue(chunk);
+    await new Promise(function(resolve){ setTimeout(resolve, 8); });
+  }
+}
+
+async function printEscposNativeText(){
+  var bytes = escposNativeBytes();
+  await writeBleFast(bytes);
+}
+
 async function printNotaThermal(){
   if(!navigator.bluetooth){
     toast('❌ Browser tidak mendukung Bluetooth. Pakai Chrome Android terbaru.');
-    return;
-  }
-
-  var notaEl=document.getElementById('nota-text');
-  if(!notaEl){
-    toast('❌ Nota tidak ditemukan');
     return;
   }
 
@@ -3756,8 +3921,9 @@ async function printNotaThermal(){
       return;
     }
 
-    toast('🖨️ Cetak sama seperti preview...');
-    await printNotaAsImage58mm(notaEl);
+    toast('🖨️ Cetak mode cepat...');
+    await printEscposNativeText();
+    toast('✅ Nota berhasil dicetak');
   }catch(e){
     toast('❌ Gagal print: '+e.message);
   }
