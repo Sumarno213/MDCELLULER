@@ -3716,20 +3716,20 @@ function escposNativeBytes(){
   // Init printer
   data.push(0x1B,0x40);
 
-  // Font A
-  data.push(0x1B,0x4D,0x01);
+  // Font A normal: lebih besar dan tajam
+  data.push(0x1B,0x4D,0x00);
 
-  // Bold OFF, hasil lebih tajam dan tidak meleber
-  data.push(0x1B,0x45,0x00);
+  // Bold ON
+  data.push(0x1B,0x45,0x01);
 
-  // Double-strike OFF, mencegah hasil samar/bleeding
+  // Double-strike OFF: tidak terlalu tebal/buram
   data.push(0x1B,0x47,0x00);
 
   // Normal size
   data.push(0x1D,0x21,0x00);
 
-  // Line spacing pas agar tidak terlalu numpuk
-  data.push(0x1B,0x33,0x18);
+  // Line spacing pas, tidak terlalu rapat
+  data.push(0x1B,0x33,0x20);
 
   // Align left
   data.push(0x1B,0x61,0x00);
