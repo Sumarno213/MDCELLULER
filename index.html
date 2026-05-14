@@ -3433,7 +3433,7 @@ var SIZE_BIG=G+'!\x11', SIZE_NORM=G+'!\x00';
 var FEED3='\n\n\n';
 
 function notaToESCPOS(teks){
-  var CHARS=32; // lebar kertas 58mm
+  var CHARS=32;
   var LINE='-'.repeat(CHARS)+'\n';
 
   function centerText(str){
@@ -3442,52 +3442,69 @@ function notaToESCPOS(teks){
     return ' '.repeat(pad)+str+'\n';
   }
   function wrapLine(str){
-    // Potong teks panjang sesuai lebar kertas
     var out='';
     while(str.length>CHARS){
       out+=str.substring(0,CHARS)+'\n';
       str=str.substring(CHARS);
     }
-    out+=str+'\n';
+    if(str) out+=str+'\n';
     return out;
   }
   function cleanStr(str){
-    // Hapus emoji, simbol non-ASCII, dan tanda *
-    return str.replace(/\*/g,'').replace(/[^\x00-\x7E]/g,'').trim();
+    // Hapus emoji dan karakter non-ASCII, pertahankan tanda * dan teks lain
+    return str.replace(/[^\x00-\x7E]/g,'').trim();
   }
 
   var out=INIT;
-
-  // Header nama konter (center)
   out+=CENTER;
-  out+=centerText(getNama().toUpperCase());
-  out+=LEFT;
-  out+=LINE;
 
-  // Proses baris nota
   var lines=teks.split('\n');
   lines.forEach(function(line){
-    // Skip header yang sudah di-render
-    if(line.includes('NOTA TRANSAKSI')) return;
-    if(line.includes(getNama()))        return;
-    if(line.startsWith('📅'))          return;
-    if(line.match(/^[━\-]{3,}/))       return;
-    if(!line.trim())                   return;
+    if(!line.trim()) return;
 
-    // Terima kasih (center)
+    var clean=cleanStr(line);
+    if(!clean) return;
+
+    // Separator
+    if(line.match(/^[━\-=]{3,}/)){
+      out+=LEFT+LINE;
+      return;
+    }
+
+    // Terima kasih
     if(line.includes('Terima kasih')||line.includes('_Terima')){
       out+=CENTER+centerText('Terima kasih!')+LEFT;
       return;
     }
 
-    var clean=cleanStr(line);
-    if(!clean) return;
-    out+=wrapLine(clean);
+    // Header NOTA TRANSAKSI — center
+    if(line.includes('NOTA TRANSAKSI')){
+      out+=CENTER+centerText('* NOTA TRANSAKSI *')+LEFT;
+      return;
+    }
+
+    // Nama konter — center bold
+    if(line.includes(getNama())){
+      out+=CENTER+centerText(getNama().toUpperCase())+LEFT;
+      return;
+    }
+
+    // Tanggal — center
+    if(line.startsWith('\uD83D')||clean.match(/^\d{2}\/\d{2}\/\d{4}/)){
+      // Ambil bagian tanggal saja
+      var tglMatch=clean.match(/\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/);
+      if(tglMatch) out+=CENTER+centerText(tglMatch[0])+LEFT;
+      return;
+    }
+
+    // Baris field — left align, hapus tanda * untuk cetak bersih
+    var cleanVal=clean.replace(/\*/g,'');
+    out+=LEFT+wrapLine(cleanVal);
   });
 
   out+=LINE;
   out+=CENTER+centerText('Terima kasih!')+LEFT;
-  out+='\n\n\n\n\n\n\n\n\n'; // 9 baris kosong
+  out+='\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n';
   out+=CUT;
   return out;
 }
