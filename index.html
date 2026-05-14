@@ -234,41 +234,6 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4ff;min-height:100vh
 .mt10{margin-top:10px;}
 .mt14{margin-top:14px;}
 </style>
-
-<style id="print-thermal-fix">
-@media print {
-  body {
-    background: white !important;
-  }
-  body * {
-    visibility: hidden;
-  }
-  #nota-text, #nota-text * {
-    visibility: visible;
-  }
-  #nota-text {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 58mm;
-    font-family: monospace;
-    font-size: 12px;
-    line-height: 1.6;
-  }
-  @page {
-    size: 58mm auto;
-    margin: 0;
-  }
-}
-.nota-box {
-  width: 58mm;
-  max-width: 100%;
-  margin: 0 auto;
-  padding: 0;
-  border: none;
-}
-</style>
-
 </head>
 <body>
 
@@ -3644,15 +3609,50 @@ function disconnectPrinter(){
   _btDevice=null;_btChar=null;updatePrinterUI();toast('🔌 Printer diputus');
 }
 
-function printNotaThermal(){
-  _printData=document.getElementById('nota-text').textContent;
-  // Tampilkan preview ESC/POS yang sudah diformat
-  var prev=document.getElementById('printer-preview-box');
-  if(prev){
-    var previewTeks=_printData.replace(/\*/g,'').replace(/[🧾🏧📅━]/g,'').trim();
-    prev.textContent=previewTeks;
-    prev.style.display='block';
-  }
+
+function printNotaThermal() {
+  var isi = document.getElementById("nota-text").innerText;
+
+  var w = window.open("", "_blank", "width=300,height=600");
+
+  w.document.write(`
+    <html>
+    <head>
+      <title>Print</title>
+      <style>
+        body {
+          margin: 0;
+          padding: 0;
+          width: 58mm;
+          font-family: monospace;
+          font-size: 12px;
+          line-height: 1.6;
+        }
+        .wrap {
+          width: 58mm;
+          padding: 5px;
+        }
+        @page {
+          size: 58mm auto;
+          margin: 0;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="wrap">${isi.replace(/
+/g, "<br>")}</div>
+    </body>
+    </html>
+  `);
+
+  w.document.close();
+
+  setTimeout(() => {
+    w.print();
+    w.close();
+  }, 500);
+}
+
   closeModal('modal-nota');
   updatePrinterUI();
   openModal('modal-printer');
