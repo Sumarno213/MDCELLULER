@@ -3611,26 +3611,23 @@ function disconnectPrinter(){
 
 
 function printNotaThermal() {
-  var isi = document.getElementById("nota-text").innerText;
+  const isiHTML = document.getElementById("nota-text").innerHTML;
 
-  var w = window.open("", "_blank", "width=300,height=600");
+  const w = window.open("", "_blank");
 
   w.document.write(`
     <html>
     <head>
-      <title>Print</title>
+      <title>Print Nota</title>
       <style>
         body {
           margin: 0;
-          padding: 0;
+          padding: 10px;
           width: 58mm;
           font-family: monospace;
           font-size: 12px;
           line-height: 1.6;
-        }
-        .wrap {
-          width: 58mm;
-          padding: 5px;
+          white-space: pre-wrap;
         }
         @page {
           size: 58mm auto;
@@ -3639,8 +3636,7 @@ function printNotaThermal() {
       </style>
     </head>
     <body>
-      <div class="wrap">${isi.replace(/
-/g, "<br>")}</div>
+      ${isiHTML}
     </body>
     </html>
   `);
@@ -3649,7 +3645,6 @@ function printNotaThermal() {
 
   setTimeout(() => {
     w.print();
-    w.close();
   }, 500);
 }
 
